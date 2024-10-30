@@ -63,6 +63,7 @@ body {
 
 /* Card styling */
 .card {
+    align-items: center;
     border: 1px solid #ddd;
     border-radius: 10px;
     background-color: #fff;
@@ -90,12 +91,14 @@ body {
 
 /* Button styles */
 .card button {
-    width: 100%;
+    width: 50%;
+    margin-left: 25%;
+    
     padding: 12px;
     background-color: #007bff;
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 5px;card
     cursor: pointer;
     transition: background-color 0.3s, transform 0.3s;
     font-weight: bold;
@@ -128,19 +131,6 @@ input:focus {
 
 /* Button styles for form submission */
 form button {
-    margin-left: 46%;
-    padding: 12px 24px;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.3s;
-}
-
-
-
-.apl {
     
     padding: 12px 24px;
     background-color: #28a745;
@@ -150,6 +140,8 @@ form button {
     cursor: pointer;
     transition: background-color 0.3s, transform 0.3s;
 }
+
+
 
 form button:hover {
     background-color: #218838;

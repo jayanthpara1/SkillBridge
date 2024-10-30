@@ -77,7 +77,6 @@ def login():
         flash('Invalid credentials!')
         return redirect('/')
 
-    # Render login page for GET request
     return render_template('login.html')
 
 @app.route('/dashboard')
@@ -94,22 +93,39 @@ def dashboard():
 
     return render_template('dashboard.html', username=session['username'], opportunities=internship_opportunities)
 
-@app.route('/apply', methods=['POST'])
-def apply():
+@app.route('/apply/<int:internship_id>', methods=['GET'])
+def apply_page(internship_id):
     if 'username' not in session:
         return redirect('/')
 
+    # Find the internship by ID
+    opportunities = [
+        {"title": "Web Development Intern", "description": "Work on building web applications.", "id": 1},
+        {"title": "Data Science Intern", "description": "Analyze data and build models.", "id": 2},
+        {"title": "Graphic Design Intern", "description": "Create designs for various projects.", "id": 3},
+    ]
+    internship = next((opp for opp in opportunities if opp["id"] == internship_id), None)
+
+    if internship is None:
+        flash("Internship not found!")
+        return redirect('/dashboard')
+
+    return render_template('apply.html', internship=internship)
+
+@app.route('/submit_application', methods=['POST'])
+def submit_application():
+    name = request.form['name']
+    email = request.form['email']
+    phone = request.form['phone']
+    college = request.form['college']
     internship_id = request.form['internship_id']
-    user_email = next((user[1] for user in load_users() if user[0] == session['username']), None)
 
-    # Send email using the internship ID for context
-    send_email(user_email, 'Internship Application', f'Application received for internship ID: {internship_id}')
-    flash('Application submitted!')
-    return redirect('/dashboard')
+    # Here you can save the application data as needed
 
-@app.route('/signup')
-def signup_page():
-    return render_template('register.html')
+    # Send confirmation email
+    send_email(email, 'Internship Application Received', f'Thank you, {name}! You are now an intern for Internship ID: {internship_id}.')
+    
+    return render_template('celebration.html', name=name)
 
 @app.route('/logout')
 def logout():
@@ -118,4 +134,5 @@ def logout():
     return redirect('/')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
+    
