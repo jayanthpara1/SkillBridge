@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <title>Dashboard</title>
+</head>
+<body>
+    <div class="header">
+        <h1>SkillBridge</h1>
+        <a href="/logout" class="profile">Logout</a>
+    </div>
+    <div class="main-container">
+        <h2 class="section-title">Welcome, {{ username }}!</h2>
+        <h3>Available Internship Opportunities</h3>
+        <div class="opportunities-container">
+            {% for opportunity in opportunities %}
+                <div class="card">
+                    <img src="{{ url_for('static', filename='images/' + opportunity.id|string + '.jpg') }}" alt="{{ opportunity.title }}">
+                    <h3>{{ opportunity.title }}</h3>
+                    <p>{{ opportunity.description }}</p>
+                    <form action="/apply" method="POST">
+                        <input type="hidden" name="internship_id" value="{{ opportunity.id }}">
+                        <button class="apl" type="submit">Apply</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="footer">
+        <p>&copy; 2024 SkillBridge. All rights reserved.</p>
+    </div>
+</body>
+</html>
