@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request, redirect, session, flash
 import csv
 import os
-import smtplib
-from email.mime.text import MIMEText
+from pdfrw import PdfReader, PdfWriter, PageMerge
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -14,48 +14,67 @@ def load_users():
     if not os.path.exists(DATA_DIR + 'users.csv'):
         return []
     with open(DATA_DIR + 'users.csv', mode='r') as file:
-        return list(csv.reader(file))
+        return [row for row in csv.reader(file) if row]  # Skip empty rows
 
 # Save user to CSV
 def save_user(username, email, password):
-    with open(DATA_DIR + 'users.csv', mode='a') as file:
+    with open(DATA_DIR + 'users.csv', mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([username, email, password])
 
-# Email sending function
-def send_email(to, subject, body):
-    from_email = 'your_email@example.com'  # Replace with your email
-    from_password = 'your_email_password'   # Replace with your email password
+# Save application to CSV
+def save_application(name, email, phone, college, branch, internship_id):
+    with open(DATA_DIR + 'applications.csv', mode='a', newline='') as file:
+        writer = csv.writer(file)
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        writer.writerow([timestamp, name, email, phone, college, branch, internship_id])
+
+# Function to fill a PDF template
+def fill_pdf_template(name, internship_id, college):
+    template_path = "C:\\Users\\91934\\Downloads\\template.pdf"
+    output_path = os.path.join(os.path.expanduser("~"), "Downloads", f"{name}_offer_letter.pdf")
+
+    # Read the template PDF
+    template_pdf = PdfReader(template_path)
     
-    msg = MIMEText(body)
-    msg['Subject'] = subject
-    msg['From'] = from_email
-    msg['To'] = to
+    # This assumes you have a text field in your template for name, internship_id, and college
+    for page in template_pdf.pages:
+        # Modify this part to replace specific placeholders in the PDF
+        # You may need to adjust the logic based on your PDF's content structure
+        text = f"Dear {name},\n\nWe are pleased to inform you that you have been selected for an internship at SkillBridge for the position of Internship ID: {internship_id}.\n\nCollege: {college}\n\nBest Regards,\nSkillBridge Team"
+        
+        # Here you would need to add text to the PDF (This is pseudo-code)
+        # Replace with actual text-adding code depending on your PDF structure
+        page.contents = PageMerge(page).add(text).render()  # Pseudo-code; adjust as needed
 
-    with smtplib.SMTP('smtp.gmail.com', 587) as server:
-        server.starttls()
-        server.login(from_email, from_password)
-        server.send_message(msg)
+    PdfWriter().write(output_path, template_pdf)
+    print(f"Offer letter PDF has been created: {output_path}")
 
-@app.route('/')
 def home():
     return render_template('index.html')
 
-@app.route('/signup', methods=['POST'])
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    username = request.form['username']
-    email = request.form['email']
-    password = request.form['password']
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
 
-    users = load_users()
-    for user in users:
-        if user[0] == username:
-            flash('Username already exists!')
-            return redirect('/')
+        if not username or not email or not password:
+            flash('All fields are required!')
+            return redirect('/signup')
 
-    save_user(username, email, password)
-    flash('Signup successful!')
-    return redirect('/')
+        users = load_users()
+        for user in users:
+            if len(user) > 0 and user[0] == username:
+                flash('Username already exists!')
+                return redirect('/signup')
+
+        save_user(username, email, password)
+        flash('Signup successful!')
+        return redirect('/')
+
+    return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -63,14 +82,9 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        # Check for admin login
-        if username == 'admin':
-            session['username'] = username
-            return redirect('/dashboard')
-
         users = load_users()
         for user in users:
-            if user[0] == username and user[2] == password:
+            if len(user) > 2 and user[0] == username and user[2] == password:
                 session['username'] = username
                 return redirect('/dashboard')
 
@@ -84,7 +98,6 @@ def dashboard():
     if 'username' not in session:
         return redirect('/')
 
-    # Example internship opportunities
     internship_opportunities = [
         {"title": "Web Development Intern", "description": "Work on building web applications.", "id": 1},
         {"title": "Data Science Intern", "description": "Analyze data and build models.", "id": 2},
@@ -98,19 +111,27 @@ def apply_page(internship_id):
     if 'username' not in session:
         return redirect('/')
 
-    # Find the internship by ID
-    opportunities = [
+    users = load_users()
+    current_user = next((user for user in users if user[0] == session['username']), None)
+
+    if current_user is None or len(current_user) < 3:
+        flash("User not found!")
+        return redirect('/dashboard')
+
+    user_email = current_user[1]
+    user_phone = current_user[2]  # Assuming phone is the third column in users.csv
+
+    internship = next((opp for opp in [
         {"title": "Web Development Intern", "description": "Work on building web applications.", "id": 1},
         {"title": "Data Science Intern", "description": "Analyze data and build models.", "id": 2},
         {"title": "Graphic Design Intern", "description": "Create designs for various projects.", "id": 3},
-    ]
-    internship = next((opp for opp in opportunities if opp["id"] == internship_id), None)
+    ] if opp["id"] == internship_id), None)
 
     if internship is None:
         flash("Internship not found!")
         return redirect('/dashboard')
 
-    return render_template('apply.html', internship=internship)
+    return render_template('apply.html', internship=internship, email=user_email, phone=user_phone)
 
 @app.route('/submit_application', methods=['POST'])
 def submit_application():
@@ -118,13 +139,18 @@ def submit_application():
     email = request.form['email']
     phone = request.form['phone']
     college = request.form['college']
+    branch = request.form['branch']
     internship_id = request.form['internship_id']
 
-    # Here you can save the application data as needed
+    # Save the application details
+    save_application(name, email, phone, college, branch, internship_id)
 
-    # Send confirmation email
-    send_email(email, 'Internship Application Received', f'Thank you, {name}! You are now an intern for Internship ID: {internship_id}.')
-    
+    # Generate the offer letter PDF
+    fill_pdf_template(name, internship_id, college)
+
+    # Temporarily disable email sending
+    # send_email(email, 'Internship Application Received', offer_letter)
+
     return render_template('celebration.html', name=name)
 
 @app.route('/logout')
@@ -135,4 +161,3 @@ def logout():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-    
