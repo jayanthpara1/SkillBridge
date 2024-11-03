@@ -2,18 +2,22 @@ from flask import Flask, render_template, request, redirect, session, flash
 import csv
 import os
 from datetime import datetime
+from letter import replace_placeholders, convert_pptx_to_pdf  # Import your PDF generation functions
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
 DATA_DIR = 'data/'
+TEMPLATE_PATH = 'C:\\new_projectr\\internships_portal\\template_letter.pptx'  # Update this to your template path
+OUTPUT_DIR = 'C:\\new_projectr\\internships_portal\\'  # Ensure this directory exists
+
 
 # Load users from CSV
 def load_users():
     if not os.path.exists(DATA_DIR + 'users.csv'):
         return []
     with open(DATA_DIR + 'users.csv', mode='r') as file:
-        return [row for row in csv.reader(file) if row]  # Skip empty rows
+        return [row for row in csv.reader(file) if row]
 
 # Save user to CSV
 def save_user(username, email, password):
@@ -114,17 +118,28 @@ def apply_page(internship_id):
 
 @app.route('/submit_application', methods=['POST'])
 def submit_application():
-    name = request.form['name']
-    email = request.form['email']
-    phone = request.form['phone']
-    college = request.form['college']
-    branch = request.form['branch']
-    internship_id = request.form['internship_id']
+    # Get form data with defaults
+    name = request.form.get('name', '<name>')
+    email = request.form.get('email', '<email>')
+    phone = request.form.get('phone', '<phone>')
+    college = request.form.get('college', '<college>')
+    branch = request.form.get('branch', '<branch>')
+    internship_name = request.form.get('internship_name', '<internship_name>')
 
     # Save the application details
-    save_application(name, email, phone, college, branch, internship_id)
-    
-    flash('Application submitted successfully!')
+    save_application(name, email, phone, college, branch, internship_name)
+
+    # Generate PDF
+    output_pdf = os.path.join(OUTPUT_DIR, f"application_{name.replace(' ', '_')}.pdf")
+
+    # Replace placeholders and convert to PDF
+    replace_placeholders(TEMPLATE_PATH, 'temp_letter.pptx', name, internship_name)
+    convert_pptx_to_pdf('temp_letter.pptx', output_pdf)
+
+    # Optionally, delete the temporary PPTX file
+    os.remove('temp_letter.pptx')
+
+    flash('Application submitted successfully and PDF generated!')
     return redirect('/congrats')
 
 @app.route('/congrats')
