@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, flash
 import csv
 import os
-from pdfrw import PdfReader, PdfWriter, PageMerge
 from datetime import datetime
 
 app = Flask(__name__)
@@ -24,32 +23,12 @@ def save_user(username, email, password):
 
 # Save application to CSV
 def save_application(name, email, phone, college, branch, internship_id):
-    with open(DATA_DIR + 'applications.csv', mode='a', newline='') as file:
+    with open(DATA_DIR + 'requests.csv', mode='a', newline='') as file:
         writer = csv.writer(file)
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         writer.writerow([timestamp, name, email, phone, college, branch, internship_id])
 
-# Function to fill a PDF template
-def fill_pdf_template(name, internship_id, college):
-    template_path = "C:\\Users\\91934\\Downloads\\template.pdf"
-    output_path = os.path.join(os.path.expanduser("~"), "Downloads", f"{name}_offer_letter.pdf")
-
-    # Read the template PDF
-    template_pdf = PdfReader(template_path)
-    
-    # This assumes you have a text field in your template for name, internship_id, and college
-    for page in template_pdf.pages:
-        # Modify this part to replace specific placeholders in the PDF
-        # You may need to adjust the logic based on your PDF's content structure
-        text = f"Dear {name},\n\nWe are pleased to inform you that you have been selected for an internship at SkillBridge for the position of Internship ID: {internship_id}.\n\nCollege: {college}\n\nBest Regards,\nSkillBridge Team"
-        
-        # Here you would need to add text to the PDF (This is pseudo-code)
-        # Replace with actual text-adding code depending on your PDF structure
-        page.contents = PageMerge(page).add(text).render()  # Pseudo-code; adjust as needed
-
-    PdfWriter().write(output_path, template_pdf)
-    print(f"Offer letter PDF has been created: {output_path}")
-
+@app.route('/')
 def home():
     return render_template('index.html')
 
@@ -119,7 +98,7 @@ def apply_page(internship_id):
         return redirect('/dashboard')
 
     user_email = current_user[1]
-    user_phone = current_user[2]  # Assuming phone is the third column in users.csv
+    user_phone = current_user[2]  # Assuming phone is available in users.csv
 
     internship = next((opp for opp in [
         {"title": "Web Development Intern", "description": "Work on building web applications.", "id": 1},
@@ -144,14 +123,13 @@ def submit_application():
 
     # Save the application details
     save_application(name, email, phone, college, branch, internship_id)
+    
+    flash('Application submitted successfully!')
+    return redirect('/congrats')
 
-    # Generate the offer letter PDF
-    fill_pdf_template(name, internship_id, college)
-
-    # Temporarily disable email sending
-    # send_email(email, 'Internship Application Received', offer_letter)
-
-    return render_template('celebration.html', name=name)
+@app.route('/congrats')
+def congrats():
+    return render_template('celebration.html')
 
 @app.route('/logout')
 def logout():
